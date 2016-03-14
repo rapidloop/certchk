@@ -66,7 +66,7 @@ func main() {
 	// parse command-line args
 	flag.Parse()
 	if flag.NArg() == 0 && len(*file) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: certchk [-f file] servername ...\n")
+		fmt.Fprintf(os.Stderr, "Usage of certchk:\n")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
