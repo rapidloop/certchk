@@ -37,10 +37,17 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+const toolVersion = "0.1.0"
+
 var (
-	dialer = &net.Dialer{Timeout: 5 * time.Second}
-	file   = flag.String("f", "", "read server names from `file`")
+	dialer       = &net.Dialer{Timeout: 5 * time.Second}
+	file         = flag.String("f", "", "read server names from `file`")
+	versionCheck bool
 )
+
+func init() {
+	flag.BoolVar(&versionCheck, "version", false, "show tool version")
+}
 
 func check(server string, width int) {
 	conn, err := tls.DialWithDialer(dialer, "tcp", server+":443", nil)
@@ -65,6 +72,10 @@ func check(server string, width int) {
 func main() {
 	// parse command-line args
 	flag.Parse()
+	if versionCheck {
+		fmt.Printf("%s v%s\n", os.Args[0], toolVersion)
+		os.Exit(0)
+	}
 	if flag.NArg() == 0 && len(*file) == 0 {
 		fmt.Fprintf(os.Stderr, "Usage: certchk [-f file] servername ...\n")
 		flag.PrintDefaults()
