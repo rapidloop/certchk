@@ -38,14 +38,24 @@ import (
 )
 
 var (
-	dialer = &net.Dialer{Timeout: 5 * time.Second}
-	file   = flag.String("f", "", "read server names from `file`")
+	dialer       = &net.Dialer{Timeout: 5 * time.Second}
+	domainFile   string
+	scriptOutput bool
 )
+
+func init() {
+	flag.BoolVar(&scriptOutput, "s", false, "produce less verbose output")
+	flag.StringVar(&domainFile, "f", "", "read server names from `file`")
+}
 
 func check(server string, width int) {
 	conn, err := tls.DialWithDialer(dialer, "tcp", server+":443", nil)
 	if err != nil {
-		fmt.Printf("%*s | %v\n", width, server, err)
+		if scriptOutput {
+			fmt.Printf("%*s error 1970-01-01 (%v)\n", width, server, err)
+		} else {
+			fmt.Printf("%*s | %v\n", width, server, err)
+		}
 		return
 	}
 	defer conn.Close()
@@ -53,10 +63,15 @@ func check(server string, width int) {
 
 	for _, c := range conn.ConnectionState().PeerCertificates {
 		if valid == nil {
-			fmt.Printf("%*s | valid, expires on %s (%s)\n", width, server,
-				c.NotAfter.Format("2006-01-02"), humanize.Time(c.NotAfter))
+			if scriptOutput {
+				fmt.Printf("%*s valid %s\n", width, server,
+					c.NotAfter.Format("2006-01-02"))
+			} else {
+				fmt.Printf("%*s | valid, expires on %s (%s)\n", width, server,
+					c.NotAfter.Format("2006-01-02"), humanize.Time(c.NotAfter))
+			}
 		} else {
-			fmt.Printf("%*s | %v\n", width, server, valid)
+			fmt.Printf("%*s, %v\n", width, server, valid)
 		}
 		return
 	}
@@ -65,8 +80,8 @@ func check(server string, width int) {
 func main() {
 	// parse command-line args
 	flag.Parse()
-	if flag.NArg() == 0 && len(*file) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: certchk [-f file] servername ...\n")
+	if flag.NArg() == 0 && len(domainFile) == 0 {
+		fmt.Fprintf(os.Stderr, "Usage of certchk:\n")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -83,8 +98,11 @@ func main() {
 	}
 
 	// actually check
-	fmt.Printf("%*s | Certificate status\n%s-+-%s\n", width, "Server",
-		strings.Repeat("-", width), strings.Repeat("-", 80-width-2))
+	if !scriptOutput {
+		fmt.Printf("%*s | Certificate status\n%s-+-%s\n", width, "Server",
+			strings.Repeat("-", width), strings.Repeat("-", 80-width-2))
+	}
+
 	for _, name := range names {
 		check(name, width)
 	}
@@ -93,8 +111,8 @@ func main() {
 func getNames() (names []string) {
 
 	// read names from the file
-	if len(*file) > 0 {
-		f, err := os.Open(*file)
+	if len(domainFile) > 0 {
+		f, err := os.Open(domainFile)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
