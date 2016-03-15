@@ -85,8 +85,20 @@ func main() {
 	// actually check
 	fmt.Printf("%*s | Certificate status\n%s-+-%s\n", width, "Server",
 		strings.Repeat("-", width), strings.Repeat("-", 80-width-2))
+
+	// channel for synchronizing 'done state', buffer the amount of names
+	done := make(chan bool, len(names))
+
 	for _, name := range names {
-		check(name, width)
+		go func(name string) {
+			check(name, width)
+			done <- true
+		}(name)
+	}
+
+	// Drain the channel and wait for all goroutines to complete
+	for i := 0; i < len(names); i++ {
+		<-done // wait for one task to complete
 	}
 }
 
