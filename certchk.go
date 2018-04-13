@@ -39,18 +39,22 @@ import (
 
 var (
 	dialer = &net.Dialer{Timeout: 5 * time.Second}
+        config = &tls.Config{}
 	file   = flag.String("f", "", "read server names from `file`")
+	skipHostVerify = flag.Bool("skip-host-verify", false, "If set, will ensure that the certificate chain(s) retrieved from the specified hosts are not verified")
 )
 
 func check(server string, width int) {
-	conn, err := tls.DialWithDialer(dialer, "tcp", server+":443", nil)
+	conn, err := tls.DialWithDialer(dialer, "tcp", server+":443", config)
 	if err != nil {
 		fmt.Printf("%*s | %v\n", width, server, err)
 		return
 	}
 	defer conn.Close()
-	valid := conn.VerifyHostname(server)
-
+	var valid error = nil
+	if !*skipHostVerify {	
+		valid = conn.VerifyHostname(server)
+	}
 	for _, c := range conn.ConnectionState().PeerCertificates {
 		if valid == nil {
 			fmt.Printf("%*s | valid, expires on %s (%s)\n", width, server,
@@ -70,6 +74,9 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
+
+	// Create TLS config based on supplied options
+	config = &tls.Config{InsecureSkipVerify: *skipHostVerify}
 
 	// collect list of server names
 	names := getNames()
